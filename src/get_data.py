@@ -397,10 +397,12 @@ class Worker(QThread):
                 lambda x: format_value(x), axis=1
             )
 
-            file_path_cost = "./data/Стоимость.xlsx"
-
             if self.cost_adding:
-                self.progress_common.emit("Добавляю стоимость к анализам...")
+                options = QtWidgets.QFileDialog.Options()
+                file_path_cost, _ = QtWidgets.QFileDialog.getOpenFileName(
+                    options=options,
+                )
+                self.progress_common.emit("Добавление стоимости к анализам...")
                 self.progress_number.emit(" ; black")
 
                 try:

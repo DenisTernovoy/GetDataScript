@@ -3,3 +3,7 @@ source/*
 
 data/*
 !data/Пути.xlsx
+
+Свод
+
+test.py

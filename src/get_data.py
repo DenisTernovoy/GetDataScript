@@ -28,7 +28,7 @@ class ResultWindow(Test):
 
 class LoadingDataWindow(Test):
 
-    def __init__(self):
+    def __init__(self, checkbox, start_date, end_date):
         super().__init__()
 
         self.setWindowTitle("Загрузка данных")
@@ -64,6 +64,32 @@ class LoadingDataWindow(Test):
 
         # self.setLayout(self.layout_loading)
         self.center()
+
+        self.checkbox = checkbox
+        cost_adding = self.checkbox.isChecked()
+
+        file_path = str(pathlib.Path("./data/Пути.xlsx").resolve())
+
+        self.start_date = start_date
+        self.end_date = end_date
+
+        self.thread = Worker(file_path, self.start_date, self.end_date, cost_adding=cost_adding)
+        self.thread.progress_common.connect(self.update_progress)
+        self.thread.progress_number.connect(self.update_progress_book)
+        self.thread.finished.connect(self.on_finished)
+        self.thread.start()
+
+    def on_finished(self):
+        self.close()
+
+        # self.result_window = ResultWindow()
+        # self.result_window.show()
+
+    def closeEvent(self, event):
+        if self.thread is not None:
+            self.thread.stop()  # Останавливаем поток
+            self.thread.wait()  # Ждем завершения потока
+        event.accept()  # Закрываем окно
 
     def update_progress(self, message):
         self.label_loading.setText(message)
@@ -149,29 +175,13 @@ class WindowComposeData(Test):
 
 
     def get_data(self):
-        cost_adding = self.checkbox.isChecked()
+        self.close()
 
-        file_path = str(pathlib.Path("./data/Пути.xlsx").resolve())
         start_date = self.date_edit_start.date().toString('dd.MM.yyyy')
         end_date = self.date_edit_end.date().toString('dd.MM.yyyy')
 
-        self.close()
-
-        self.loading_window = LoadingDataWindow()
+        self.loading_window = LoadingDataWindow(self.checkbox, start_date, end_date)
         self.loading_window.show()
-
-        self.thread = Worker(file_path, start_date, end_date, cost_adding=cost_adding)
-        self.thread.progress_common.connect(self.loading_window.update_progress)
-        self.thread.progress_number.connect(self.loading_window.update_progress_book)
-        self.thread.finished.connect(self.on_finished)
-        self.thread.start()
-
-
-    def on_finished(self):
-        self.loading_window.close()
-
-        self.result_window = ResultWindow()
-        self.result_window.show()
 
 
 class Worker(QThread):
@@ -193,8 +203,10 @@ class Worker(QThread):
         self.end_date = end_date
         self.sheet = sheet
         self.cost_adding = cost_adding
-        self.file_path_cost, _ = QtWidgets.QFileDialog.getOpenFileName()
+        self.stop_signal = False
 
+    def stop(self):
+        self.stop_signal = True
 
     def run(self) -> None:
         """Функция получает данные времени и возвращает таблицу excel с анализами, проведенными за указанный период"""
@@ -252,6 +264,9 @@ class Worker(QThread):
 
         # Цикл создания DataFrames по каждому пути
         for i in data:
+
+            if self.stop_signal:
+                return
 
             count += 1
 
@@ -400,11 +415,14 @@ class Worker(QThread):
 
             if self.cost_adding:
 
+                options = QtWidgets.QFileDialog.Options()
+                file_path_cost, _ = QtWidgets.QFileDialog.getOpenFileName(options=options)
+
                 self.progress_common.emit("Добавление стоимости к анализам...")
                 self.progress_number.emit(" ; black")
 
                 try:
-                    df = merge_cost(combined_df, self.file_path_cost)
+                    df = merge_cost(combined_df, file_path_cost)
                     df["Стоимость всех анализов"] = df["Количество анализов"] * df["Стоимость"]
                 except Exception as error:
                     print(error)

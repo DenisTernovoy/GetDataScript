@@ -193,6 +193,7 @@ class Worker(QThread):
         self.end_date = end_date
         self.sheet = sheet
         self.cost_adding = cost_adding
+        self.file_path_cost, _ = QtWidgets.QFileDialog.getOpenFileName()
 
 
     def run(self) -> None:
@@ -398,15 +399,12 @@ class Worker(QThread):
             )
 
             if self.cost_adding:
-                options = QtWidgets.QFileDialog.Options()
-                file_path_cost, _ = QtWidgets.QFileDialog.getOpenFileName(
-                    options=options,
-                )
+
                 self.progress_common.emit("Добавление стоимости к анализам...")
                 self.progress_number.emit(" ; black")
 
                 try:
-                    df = merge_cost(combined_df, file_path_cost)
+                    df = merge_cost(combined_df, self.file_path_cost)
                     df["Стоимость всех анализов"] = df["Количество анализов"] * df["Стоимость"]
                 except Exception as error:
                     print(error)
@@ -414,7 +412,7 @@ class Worker(QThread):
                 df = combined_df
 
 
-            # Создание файла свода по всем журналам в Excel
+            #Создание файла свода по всем журналам в Excel
             df.to_excel(
                 f"Свод/{directory_name}/Свод за {self.start_date} - {self.end_date}.xlsx", index=False
             )  # Замените на желаемое имя файла

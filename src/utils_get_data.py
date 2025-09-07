@@ -1,19 +1,20 @@
 import pandas as pd
 
+
 def merge_cost(df_main, file_path):
 
-    if not file_path:
-        file_path = "Стоимость.xlsx"
-
-    df_cost = pd.read_excel(file_path)
+    df_cost = pd.read_excel(file_path, sheet_name="Вид исследования")
 
     df_cost["Наименование исследования"] = df_cost["Наименование исследования"].apply(lambda x: x.lower())
 
     result = pd.merge(
         df_main,
-        df_cost[["Наименование исследования", "Стоимость"]],
+        df_cost[["Наименование исследования", "Стоимость исследования \n(только реактивы & расходные материалы), руб."]],
         on="Наименование исследования",
     )
+
+    result.rename(columns={'Стоимость исследования \n(только реактивы & расходные материалы), руб.': 'Стоимость'}, inplace=True)
+
     return result
 
 
